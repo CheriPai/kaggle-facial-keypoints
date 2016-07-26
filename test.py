@@ -1,6 +1,6 @@
 from keras.models import model_from_json
 from utils import process_data
-from utils import TEST_PATH, MODEL_PATH, WEIGHTS_PATH, LOOKUP_PATH, SUBMISSION_PATH, BATCH_SIZE
+from utils import TEST_PATH, MODEL_PATH, WEIGHTS_PATH, LOOKUP_PATH, SUBMISSION_PATH, IMG_SIZE, BATCH_SIZE
 import numpy as np
 import pandas as pd
 
@@ -22,6 +22,8 @@ if __name__ == "__main__":
     model.compile(loss="mse", optimizer="sgd")
 
     predictions = model.predict(X, batch_size=BATCH_SIZE)
+    predictions *= IMG_SIZE // 2
+    predictions += IMG_SIZE // 2
 
     submission_values = []
     for i in range(len(lookup)):
