@@ -2,6 +2,7 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.models import Sequential
 from keras.optimizers import SGD
+from keras.preprocessing.image import ImageDataGenerator
 from sklearn.cross_validation import train_test_split
 from utils import process_data
 from utils import TRAIN_PATH, MODEL_PATH, WEIGHTS_PATH, BATCH_SIZE, IMG_SIZE, VAL_PROP
@@ -37,16 +38,50 @@ def build_model():
 
     model.add(Dense(30))
 
-    sgd = SGD(lr=0.01, decay=1e-5, momentum=0.9, nesterov=True)
+    # lr 0.04, decay 1e-4 4.107
+    # lr 0.06, decay 1e-4 3.684
+    # lr 0.07, decay 1e-4 3.567
+    # lr 0.08, decay 1e-4 3.459
+    # lr 0.10, decay 1e-4 3.384
+    # lr 0.10, decay 1e-4 3.407 data aug
+    sgd = SGD(lr=0.1, decay=1e-4, momentum=0.9, nesterov=True)
     model.compile(loss="mse", optimizer=sgd)
     return model
+
+
+class FlippedImageDataGenerator(ImageDataGenerator):
+    flip_idxs = [ (0, 2), (1, 3), (4, 8), (5, 9),
+                  (6, 10), (7, 11), (12, 16), (13, 17),
+                  (14, 18), (15, 19), (22, 24), (23, 25) 
+                ] 
+
+    def next(self):
+        X_batch, y_batch = super(FlippedImageDataGenerator, self).next()
+        batch_size = X_batch.shape[0]
+        idxs = np.random.choice(batch_size, batch_size / 2, replace=False)
+        # Flip image horizontally
+        X_batch[idxs] = X_batch[idxs, :, :, ::-1]
+
+        if y_batch is not None:
+            y_batch[idxs, ::2] = y_batch[idxs, ::2] * -1
+
+            for a, b in self.flip_idxs:
+                y_batch[idxs, a], y_batch[idxs, b] = (y_batch[idxs, b] , y_batch[idxs, a])
+
+        return X_batch, y_batch
+
+
 
 
 if __name__ == "__main__":
     X, y = process_data(TRAIN_PATH)
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=VAL_PROP)
     model = build_model()
-    model.fit(X_train, y_train, nb_epoch=1000, batch_size=BATCH_SIZE, verbose=1)
+    flipgen = FlippedImageDataGenerator()
+    model.fit_generator(flipgen.flow(X_train, y_train),
+                        samples_per_epoch=X_train.shape[0],
+                        nb_epoch=1000,
+                        verbose=1)
 
     print("Saving model to ", MODEL_PATH)
     print("Saving weights to ", WEIGHTS_PATH)
@@ -54,4 +89,5 @@ if __name__ == "__main__":
     model.save_weights(WEIGHTS_PATH)
 
     mse = model.evaluate(X_val, y_val, batch_size=BATCH_SIZE)
+    print("MSE: ", mse)
     print("RMSE: ", np.sqrt(mse)*IMG_SIZE)
