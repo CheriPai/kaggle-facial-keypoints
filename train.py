@@ -1,11 +1,12 @@
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
-from keras.models import Sequential
+from keras.models import Sequential, model_from_json
 from keras.optimizers import SGD
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.cross_validation import train_test_split
 from utils import process_data
 from utils import TRAIN_PATH, MODEL_PATH, WEIGHTS_PATH, BATCH_SIZE, IMG_SIZE, VAL_PROP
+import argparse
 import numpy as np
 import pandas as pd
 
@@ -44,8 +45,6 @@ def build_model():
     # lr 0.08, decay 1e-4 3.459
     # lr 0.10, decay 1e-4 3.384
     # lr 0.10, decay 1e-4 3.407 data aug
-    sgd = SGD(lr=0.1, decay=1e-4, momentum=0.9, nesterov=True)
-    model.compile(loss="mse", optimizer=sgd)
     return model
 
 
@@ -74,10 +73,22 @@ class FlippedImageDataGenerator(ImageDataGenerator):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', action='store_true')
+    args = parser.parse_args()
+
     X, y = process_data(TRAIN_PATH)
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=VAL_PROP)
-    model = build_model()
+
+    if args.p:
+        model = model_from_json(open(MODEL_PATH).read())
+        model.load_weights(WEIGHTS_PATH)
+    else:
+        model = build_model()
+
     flipgen = FlippedImageDataGenerator()
+    sgd = SGD(lr=0.1, decay=1e-4, momentum=0.9, nesterov=True)
+    model.compile(loss="mse", optimizer=sgd)
     model.fit_generator(flipgen.flow(X_train, y_train),
                         samples_per_epoch=X_train.shape[0],
                         nb_epoch=1000,
