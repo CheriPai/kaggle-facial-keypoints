@@ -15,6 +15,9 @@ VAL_PROP = 0.1
 
 
 def process_data(fname, mode="TRAIN"):
+    """ Reads csv file and returns a numpy array of the image
+        and corresponding values for the keypoints
+    """
     df = pd.read_csv(fname)
     df = df.dropna()
     imgs = df.as_matrix(columns=["Image"])
