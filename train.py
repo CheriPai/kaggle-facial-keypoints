@@ -64,14 +64,9 @@ class FlippedImageDataGenerator(ImageDataGenerator):
 
 
 
-# lr 0.04, decay 1e-4 4.107
-# lr 0.06, decay 1e-4 3.684
-# lr 0.07, decay 1e-4 3.567
-# lr 0.08, decay 1e-4 3.459
-# lr 0.10, decay 1e-4 3.384
 # lr 0.10, decay 1e-4 3.407 data aug
 # lr 0.09, decay 1e-4 3.306 data aug
-# lr 0.08, decay 1e-4 3.022
+# lr 0.08, decay 1e-4 3.022 data aug
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', action='store_true')
@@ -87,7 +82,7 @@ if __name__ == "__main__":
         model = build_model()
 
     flipgen = FlippedImageDataGenerator()
-    sgd = SGD(lr=0.08, decay=1e-4, momentum=0.9, nesterov=True)
+    sgd = SGD(lr=0.07, decay=1e-4, momentum=0.9, nesterov=True)
     model.compile(loss="mse", optimizer=sgd)
     model.fit_generator(flipgen.flow(X_train, y_train),
                         samples_per_epoch=X_train.shape[0],
