@@ -1,3 +1,4 @@
+from keras.callbacks import EarlyStopping
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.models import Sequential, model_from_json
@@ -64,9 +65,10 @@ class FlippedImageDataGenerator(ImageDataGenerator):
 
 
 
-# lr 0.10, decay 1e-4 3.407 data aug
-# lr 0.09, decay 1e-4 3.306 data aug
-# lr 0.08, decay 1e-4 3.022 data aug
+# lr 0.10, decay 1e-4 3.407
+# lr 0.09, decay 1e-4 3.306
+# lr 0.08, decay 1e-4 3.022
+# lr 0.07, decay 1e-4 3.310
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', action='store_true')
@@ -82,17 +84,19 @@ if __name__ == "__main__":
         model = build_model()
 
     flipgen = FlippedImageDataGenerator()
-    sgd = SGD(lr=0.07, decay=1e-4, momentum=0.9, nesterov=True)
+    sgd = SGD(lr=0.08, decay=1e-4, momentum=0.9, nesterov=True)
     model.compile(loss="mse", optimizer=sgd)
+    early_stop = EarlyStopping(monitor="val_loss", patience=100, mode="min")
     model.fit_generator(flipgen.flow(X_train, y_train),
                         samples_per_epoch=X_train.shape[0],
-                        nb_epoch=1000,
-                        verbose=1)
+                        nb_epoch=5000,
+                        validation_data=(X_val, y_val),
+                        callbacks=[early_stop])
 
     print("Saving model to ", MODEL_PATH)
     print("Saving weights to ", WEIGHTS_PATH)
     open(MODEL_PATH, 'w').write(model.to_json())
-    model.save_weights(WEIGHTS_PATH)
+    model.save_weights(WEIGHTS_PATH, overwrite=True)
 
     mse = model.evaluate(X_val, y_val, batch_size=BATCH_SIZE)
     print("MSE: ", mse)
