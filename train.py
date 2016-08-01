@@ -65,10 +65,7 @@ class FlippedImageDataGenerator(ImageDataGenerator):
 
 
 
-# lr 0.10, decay 1e-4 3.407
-# lr 0.09, decay 1e-4 3.306
-# lr 0.08, decay 1e-4 3.022
-# lr 0.07, decay 1e-4 3.310
+# RMSE: 2.597
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', action='store_true')
