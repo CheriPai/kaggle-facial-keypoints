@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from keras.callbacks import EarlyStopping
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
@@ -7,65 +6,10 @@ from keras.optimizers import SGD
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.cross_validation import train_test_split
 from utils import process_data
-from utils import TRAIN_PATH, MODEL_PATH, WEIGHTS_PATH, BATCH_SIZE, IMG_SIZE, VAL_PROP
+from utils import TRAIN_PATH, MODEL_PATH, WEIGHTS_PATH, BATCH_SIZE, IMG_SIZE, VAL_PROP, SPECIALIST_SETTINGS
 import argparse
 import numpy as np
 import pandas as pd
-
-
-SPECIALIST_SETTINGS = [
-    dict(
-        columns=(
-            'left_eye_center_x', 'left_eye_center_y',
-            'right_eye_center_x', 'right_eye_center_y',
-            ),
-        flip_idxs=((0, 2), (1, 3)),
-        ),
-
-    dict(
-        columns=(
-            'nose_tip_x', 'nose_tip_y',
-            ),
-        flip_idxs=(),
-        ),
-
-    dict(
-        columns=(
-            'mouth_left_corner_x', 'mouth_left_corner_y',
-            'mouth_right_corner_x', 'mouth_right_corner_y',
-            'mouth_center_top_lip_x', 'mouth_center_top_lip_y',
-            ),
-        flip_idxs=((0, 2), (1, 3)),
-        ),
-
-    dict(
-        columns=(
-            'mouth_center_bottom_lip_x',
-            'mouth_center_bottom_lip_y',
-            ),
-        flip_idxs=(),
-        ),
-
-    dict(
-        columns=(
-            'left_eye_inner_corner_x', 'left_eye_inner_corner_y',
-            'right_eye_inner_corner_x', 'right_eye_inner_corner_y',
-            'left_eye_outer_corner_x', 'left_eye_outer_corner_y',
-            'right_eye_outer_corner_x', 'right_eye_outer_corner_y',
-            ),
-        flip_idxs=((0, 2), (1, 3), (4, 6), (5, 7)),
-        ),
-
-    dict(
-        columns=(
-            'left_eyebrow_inner_end_x', 'left_eyebrow_inner_end_y',
-            'right_eyebrow_inner_end_x', 'right_eyebrow_inner_end_y',
-            'left_eyebrow_outer_end_x', 'left_eyebrow_outer_end_y',
-            'right_eyebrow_outer_end_x', 'right_eyebrow_outer_end_y',
-            ),
-        flip_idxs=((0, 2), (1, 3), (4, 6), (5, 7)),
-        ),
-    ]
 
 
 def build_model():
@@ -151,7 +95,6 @@ def train_model(pretrain):
 
 
 def train_specialists(pretrain):
-    specialists = OrderedDict()
     for setting in SPECIALIST_SETTINGS:
         cols = setting["columns"]
         X, y = process_data(TRAIN_PATH, cols)
@@ -180,8 +123,11 @@ def train_specialists(pretrain):
                             validation_data=(X_val, y_val),
                             callbacks=[early_stop])
 
+        model_path = "data/model_{}.json".format(cols[0])
         weights_path = "data/weights_{}.h5".format(cols[0])
+        print("Saving model to ", model_path)
         print("Saving weights to ", weights_path)
+        open(model_path, 'w').write(model.to_json())
         model.save_weights(weights_path, overwrite=True)
 
 
