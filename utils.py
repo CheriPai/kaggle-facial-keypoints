@@ -14,11 +14,13 @@ IMG_SIZE = 96
 VAL_PROP = 0.1
 
 
-def process_data(fname, mode="TRAIN"):
+def process_data(fname, cols=None, mode="TRAIN"):
     """ Reads csv file and returns a numpy array of the image
         and corresponding values for the keypoints
     """
     df = pd.read_csv(fname)
+    if cols:
+        df = df[list(cols) + ["Image"]]
     df = df.dropna()
     imgs = df.as_matrix(columns=["Image"])
     X = np.array([np.array(row[0].split(" ")) for row in imgs])

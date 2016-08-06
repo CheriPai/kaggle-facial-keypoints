@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from keras.callbacks import EarlyStopping
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
@@ -10,6 +11,61 @@ from utils import TRAIN_PATH, MODEL_PATH, WEIGHTS_PATH, BATCH_SIZE, IMG_SIZE, VA
 import argparse
 import numpy as np
 import pandas as pd
+
+
+SPECIALIST_SETTINGS = [
+    dict(
+        columns=(
+            'left_eye_center_x', 'left_eye_center_y',
+            'right_eye_center_x', 'right_eye_center_y',
+            ),
+        flip_idxs=((0, 2), (1, 3)),
+        ),
+
+    dict(
+        columns=(
+            'nose_tip_x', 'nose_tip_y',
+            ),
+        flip_idxs=(),
+        ),
+
+    dict(
+        columns=(
+            'mouth_left_corner_x', 'mouth_left_corner_y',
+            'mouth_right_corner_x', 'mouth_right_corner_y',
+            'mouth_center_top_lip_x', 'mouth_center_top_lip_y',
+            ),
+        flip_idxs=((0, 2), (1, 3)),
+        ),
+
+    dict(
+        columns=(
+            'mouth_center_bottom_lip_x',
+            'mouth_center_bottom_lip_y',
+            ),
+        flip_idxs=(),
+        ),
+
+    dict(
+        columns=(
+            'left_eye_inner_corner_x', 'left_eye_inner_corner_y',
+            'right_eye_inner_corner_x', 'right_eye_inner_corner_y',
+            'left_eye_outer_corner_x', 'left_eye_outer_corner_y',
+            'right_eye_outer_corner_x', 'right_eye_outer_corner_y',
+            ),
+        flip_idxs=((0, 2), (1, 3), (4, 6), (5, 7)),
+        ),
+
+    dict(
+        columns=(
+            'left_eyebrow_inner_end_x', 'left_eyebrow_inner_end_y',
+            'right_eyebrow_inner_end_x', 'right_eyebrow_inner_end_y',
+            'left_eyebrow_outer_end_x', 'left_eyebrow_outer_end_y',
+            'right_eyebrow_outer_end_x', 'right_eyebrow_outer_end_y',
+            ),
+        flip_idxs=((0, 2), (1, 3), (4, 6), (5, 7)),
+        ),
+    ]
 
 
 def build_model():
@@ -64,17 +120,11 @@ class FlippedImageDataGenerator(ImageDataGenerator):
         return X_batch, y_batch
 
 
-
-# RMSE: 2.597
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-p', action='store_true')
-    args = parser.parse_args()
-
+def train_model(pretrain):
     X, y = process_data(TRAIN_PATH)
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=VAL_PROP)
 
-    if args.p:
+    if pretrain:
         model = model_from_json(open(MODEL_PATH).read())
         model.load_weights(WEIGHTS_PATH)
     else:
@@ -98,3 +148,51 @@ if __name__ == "__main__":
     mse = model.evaluate(X_val, y_val, batch_size=BATCH_SIZE)
     print("MSE: ", mse)
     print("RMSE: ", np.sqrt(mse)*IMG_SIZE)
+
+
+def train_specialists(pretrain):
+    specialists = OrderedDict()
+    for setting in SPECIALIST_SETTINGS:
+        cols = setting["columns"]
+        X, y = process_data(TRAIN_PATH, cols)
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=VAL_PROP)
+
+        if pretrain:
+            model = model_from_json(open(MODEL_PATH).read())
+            model.load_weights(WEIGHTS_PATH)
+        else:
+            model = build_model()
+
+        model.layers.pop()
+        model.outputs = [model.layers[-1].output]
+        model.layers[-1].outbound_nodes = []
+        model.add(Dense(len(cols), name="dense_3"))
+
+        flipgen = FlippedImageDataGenerator()
+        flipgen.flip_idxs = setting["flip_idxs"]
+        sgd = SGD(lr=0.08, decay=1e-4, momentum=0.9, nesterov=True)
+        model.compile(loss="mse", optimizer=sgd)
+        early_stop = EarlyStopping(monitor="val_loss", patience=100, mode="min")
+        print("Training {}...".format(cols[0]))
+        model.fit_generator(flipgen.flow(X_train, y_train),
+                            samples_per_epoch=X_train.shape[0],
+                            nb_epoch=1000,
+                            validation_data=(X_val, y_val),
+                            callbacks=[early_stop])
+
+        weights_path = "data/weights_{}.h5".format(cols[0])
+        print("Saving weights to ", weights_path)
+        model.save_weights(weights_path, overwrite=True)
+
+
+
+
+# RMSE: 2.597
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', action='store_true')
+    args = parser.parse_args()
+
+    # train_model(args.p)
+    train_specialists(args.p)
+
